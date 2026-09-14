@@ -1,228 +1,134 @@
-# Fraud Risk Scoring & Transaction Monitoring System
+# Fraud Risk Scoring
 
-An end-to-end machine learning system for identifying potentially fraudulent financial transactions and converting model predictions into actionable risk decisions.
+An XGBoost-based fraud detection system for identifying and prioritising suspicious financial transactions using transaction and balance behaviour.
 
-## Overview
+## Business Problem
 
-Financial fraud detection is not simply a binary classification problem. A practical risk system must identify suspicious behaviour, quantify risk, manage false positives, and support operational decisions.
+Financial fraud detection is a highly imbalanced classification problem where fraudulent transactions represent only a small fraction of total transactions.
 
-This project develops a **fraud risk scoring and transaction monitoring system** that analyses transaction and behavioural signals to:
+The goal of this project is to build a machine learning system that can identify fraudulent transactions while minimising false positives and prioritise high-risk transactions for further investigation.
 
-* Detect potentially fraudulent transactions
-* Generate a transaction-level risk score
-* Classify transactions into risk categories
-* Support **Approve / Review / Decline** decisions
-* Explain individual predictions using SHAP
-* Provide an extensible foundation for real-time fraud monitoring
+## Project Overview
 
-## Problem Statement
+This project uses XGBoost to detect fraudulent financial transactions.
 
-Build a machine learning-based risk engine capable of distinguishing legitimate financial transactions from fraudulent activity while considering the highly imbalanced nature of fraud data and the business cost of incorrect decisions.
+The workflow includes:
 
-## System Architecture
-
-```text
-Transaction Data
-       │
-       ▼
-Data Validation & Exploration
-       │
-       ▼
-SQL Analytics
-       │
-       ▼
-Behavioural Feature Engineering
-       │
-       ├── Transaction Velocity
-       ├── Amount Behaviour
-       ├── Account Behaviour
-       ├── Transaction Type
-       └── Balance Patterns
-       │
-       ▼
-Fraud Risk Model
-       │
-       ▼
-Fraud Probability
-       │
-       ▼
-Risk Scoring Engine
-       │
-       ├── LOW      → APPROVE
-       ├── MEDIUM   → REVIEW
-       └── HIGH     → DECLINE
-       │
-       ▼
-SHAP Explainability
-       │
-       ▼
-Monitoring Dashboard
-```
+- Exploratory data analysis
+- Fraud distribution and transaction-type analysis
+- Transaction and balance feature engineering
+- Chronological train/validation/test splitting
+- Baseline model development
+- XGBoost model development
+- Precision-recall based threshold optimisation
+- SHAP-based model explainability
+- Business interpretation and recommendations
 
 ## Dataset
 
-This project uses the **PaySim Synthetic Financial Dataset for Fraud Detection**.
+The project uses a financial transaction dataset containing transaction details, account balances, transaction types, and fraud labels.
 
-The dataset is not included in this repository because of its size.
+The dataset is highly imbalanced, with fraudulent transactions representing only a small fraction of all transactions.
 
-### Download
+The dataset is not included in this repository due to its size.
 
-[**PaySim Dataset — Kaggle**](https://www.kaggle.com/datasets/ealaxi/paysim1)
+## Methodology
 
-After downloading the dataset, place the CSV file inside:
+The project follows a chronological modelling workflow to better reflect future transaction prediction.
 
-```text
-data/
-```
+1. Exploratory data analysis
+2. Feature engineering
+3. Time-based train/test split
+4. Baseline XGBoost model
+5. Engineered XGBoost model
+6. Validation-based threshold optimisation
+7. Final evaluation on a held-out future test period
+8. SHAP-based model interpretation
 
-Please refer to the original dataset page for licensing and attribution information.
+## Feature Engineering
 
-## Key Features
+Several transaction-level features were engineered to capture abnormal balance behaviour, including:
 
-### Transaction-level signals
+- Balance changes in the originating and destination accounts
+- Transaction amount relative to the originating balance
+- Origin and destination balance inconsistencies
+- Zero-balance indicator
+- Hour, day, and night-time indicators
 
-* Transaction amount
-* Transaction type
-* Origin account balance
-* Destination account balance
-* Balance changes
+These features were designed to capture transaction behaviour that may be associated with fraudulent activity.
 
-### Behavioural signals
+## Model & Evaluation
 
-The project extends the raw dataset with derived behavioural features such as:
+XGBoost was used as the primary classification model because it performs well on structured tabular data and can capture non-linear relationships between transaction features.
 
-* Transaction frequency
-* Transaction velocity
-* Amount deviation
-* Account transaction patterns
-* Balance inconsistencies
-* Unusual transaction behaviour
+Due to the severe class imbalance, model performance was evaluated using precision, recall, F1 score, and Average Precision rather than accuracy alone.
 
-## Machine Learning
+The classification threshold was optimised using a separate validation period, while the final performance was measured on an unseen future test period.
 
-The primary model is based on **gradient-boosted decision trees**.
+## Results
 
-Model development focuses on:
+The final model achieved the following results on the held-out future test period:
 
-* Highly imbalanced classification
-* Precision and recall trade-offs
-* PR-AUC
-* F1 score
-* Confusion matrix analysis
-* Threshold optimisation
-* Business-cost-aware evaluation
+| Metric | Result |
+|---|---:|
+| Precision | 100.00% |
+| Recall | 99.93% |
+| F1 Score | 99.96% |
+| Average Precision (PR-AUC) | 99.96% |
+| False Positives | 0 |
+| False Negatives | 3 |
 
-Accuracy is deliberately not treated as the primary success metric because fraud represents a small proportion of overall transactions.
+The model detected 4,247 of 4,250 fraudulent transactions while producing no false positives on the test set.
 
-## Risk Scoring
+## Explainability
 
-Instead of returning only a binary fraud prediction, the model produces a probability-based risk score.
+SHAP was used to understand which features contributed most strongly to the model's predictions.
 
-```text
-Risk Score
-    │
-    ├── Low Risk
-    ├── Medium Risk
-    └── High Risk
-```
+The model relied primarily on balance-related features and transaction-to-balance relationships, particularly:
 
-The thresholds are selected based on model performance and the operational trade-off between:
+- Amount-to-balance ratio
+- Originating account balance
+- Balance changes
+- Balance inconsistencies
 
-* Missing fraudulent transactions
-* Incorrectly flagging legitimate customers
+This provides insight into the transaction characteristics associated with higher fraud risk.
 
-## Explainable AI
+## Business Interpretation
 
-**SHAP (SHapley Additive exPlanations)** is used to explain model predictions.
+The model can be used as a post-transaction fraud risk scoring system to prioritise suspicious transactions for investigation.
 
-For an individual high-risk transaction, the system can identify contributing factors such as:
+Potential business applications include:
 
-```text
-High transaction amount       ↑
-Unusual transaction behaviour ↑
-Abnormal balance movement     ↑
-Transaction pattern           ↑
-```
+- Prioritising high-risk transactions for manual review
+- Ranking transactions by predicted fraud probability
+- Adjusting decision thresholds based on the cost of false positives and false negatives
+- Monitoring model performance as transaction behaviour changes
+- Periodically retraining the model with newer transaction data
 
-This makes the model more interpretable for analysts and risk teams.
+## Limitations
 
-## Technology Stack
+- The dataset is synthetic and may not fully represent real-world fraud patterns.
+- The model uses post-transaction balance information, so it is framed as a post-transaction fraud detection system rather than a pre-authorisation system.
+- Fraud patterns may change over time, requiring ongoing performance monitoring and model retraining.
 
-| Component        | Technology            |
-| ---------------- | --------------------- |
-| Programming      | Python                |
-| Data Analysis    | Pandas, NumPy         |
-| SQL              | PostgreSQL            |
-| Machine Learning | Scikit-learn, XGBoost |
-| Explainability   | SHAP                  |
-| Visualisation    | Matplotlib, Seaborn   |
-| Dashboard        | Streamlit             |
-| API              | FastAPI               |
-| Version Control  | Git / GitHub          |
+## How to Run
+
+1. Clone the repository.
+2. Install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+3. Place the dataset in the data/ directory.
+4. Open notebooks/fraud_detection.ipynb.
+5. Run the notebook from start to finish.
 
 ## Project Structure
 
 ```text
 fraud-risk-scoring/
-│
 ├── data/
-│   └── .gitkeep
-│
 ├── notebooks/
-│   ├── 01_data_exploration.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   └── 03_model_development.ipynb
-│
-├── src/
-│   ├── data/
-│   ├── features/
-│   ├── models/
-│   ├── scoring/
-│   └── monitoring/
-│
-├── models/
-│
-├── dashboard/
-│
+│   └── fraud_detection.ipynb
 ├── README.md
 ├── requirements.txt
 └── .gitignore
-```
-
-## Results
-
-Results will be added after model development.
-
-| Metric    | Score |
-| --------- | ----: |
-| PR-AUC    |   TBD |
-| Precision |   TBD |
-| Recall    |   TBD |
-| F1 Score  |   TBD |
-
-## Future Extensions
-
-The system is intentionally designed to be extendable.
-
-Potential extensions include:
-
-* Real-time transaction scoring
-* Streaming transaction pipelines
-* Customer-level risk profiles
-* Merchant risk scoring
-* Anomaly detection
-* Model drift monitoring
-* Automated model retraining
-* Human-in-the-loop fraud review
-* Real-time API deployment
-* Advanced graph-based fraud detection
-
-## Disclaimer
-
-This project uses synthetic financial transaction data for educational and portfolio purposes. It is not intended for making real financial or credit decisions.
-
-## Author
-
-**Falesh Kumar Sahu**
-
-B.Tech — Computer Science & Engineering (Data Science)
